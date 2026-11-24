@@ -6,7 +6,7 @@ const AMOUNT_AT_END = /(?:^|\s)(?:(-)[€<«]|[€<«]|EUR)?\s?(-?\d{1,5}(?:[.,]
 const ANY_AMOUNT = /\d+[.,]\d{2}\b/g;
 
 const TOTAL = /\b(summe|gesamt(?:betrag|summe)?|total|zu\s*zahlen|endbetrag|rechnungsbetrag|betrag)\b/i;
-const SUBTOTAL = /\b(zwischensumme|zw\.?\s*summe|subtotal)\b/i;
+const SUBTOTAL = /\b(zwischensumme|zw\.?\s*summe|sub\s*-?\s*tot\w*)\b/i;
 const IGNORE = new RegExp([
   'mwst', '\\bm\\.\\s*w\\.\\s*st', '\\bust\\b', 'steuer', '\\bnetto\\b', '\\bbrutto\\b',
   'r[üu]e?ckgeld', 'wechselgeld', 'gegeben', '\\bgeg\\.', '\\bbar\\b', 'ec[-\\s]?cash', 'girocard',
@@ -44,7 +44,11 @@ export function parseReceipt(text) {
 
   for (const raw of String(text || '').split(/\r?\n/)) {
     // Repair OCR artifacts such as "1 ,29" or "1, 29".
-    const line = raw.replace(/(\d)\s*([.,])\s*(\d{2})(?!\d)/g, '$1$2$3').trim();
+    const line = raw
+      .replace(/(\d)\s*([.,])\s*(\d{2})(?!\d)/g, '$1$2$3')
+      // Noise glued to the currency sign, e.g. "<€45.18", "€<€45.18", "c€45.18", "€©0.69".
+      .replace(/\S*€[^\d\s-]*(?=-?\d)/g, (m) => (/-€/.test(m) ? ' -€' : ' €'))
+      .trim();
     if (!line) continue;
 
     const m = line.match(AMOUNT_AT_END);

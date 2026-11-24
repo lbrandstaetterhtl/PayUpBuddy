@@ -126,3 +126,26 @@ test('OCR pass scoring prefers results whose items add up to the total', async (
   const none = score({ items: [], totalCents: 800 });
   assert.ok(complete > partial && partial > none);
 });
+
+test('noise around the currency sign (grey total bar in app screenshots)', () => {
+  for (const t of ['Total (incl. VAT) <€45.18', 'Total (incl. VAT)   €<€45.18', 'Total (incl VAT)  c€45.18']) {
+    assert.equal(parseReceipt(t).totalCents, 4518, t);
+  }
+  assert.deepEqual(parseReceipt('Service fee @   €©0.69\nRabatt -€2.00').items, [
+    { label: 'Service fee', cents: 69 },
+    { label: 'Rabatt', cents: -200 },
+  ]);
+});
+
+test('rebuildLines puts a right-column price on the row of its item and drops photo noise', async () => {
+  const { rebuildLines } = await import('../src/ocr.js');
+  const w = (text, x0, y0, conf = 90) => ({ text, conf, x0, y0, x1: x0 + 40, y1: y0 + 30 });
+  const text = rebuildLines([
+    w('€5.50', 900, 104), // price printed slightly lower than the name
+    w('Fritten', 200, 100),
+    w('Xq', 100, 98, 20), // low-confidence noise from a product photo
+    w('Total', 200, 200),
+    w('€45.18', 900, 202),
+  ]);
+  assert.equal(text, 'Fritten €5.50\nTotal €45.18');
+});
