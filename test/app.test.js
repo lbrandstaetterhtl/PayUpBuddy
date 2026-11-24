@@ -137,3 +137,14 @@ test('bill validation and CSRF protection', async () => {
   const evil = await anna('/logout', { method: 'POST', headers: { origin: 'https://evil.example' } });
   assert.equal(evil.status, 403);
 });
+
+test('static assets are versioned by content hash', async () => {
+  const anna = client((await login('anna', 'annapass1')).cookie);
+  const page = await (await anna('/bills/new')).text();
+  const m = page.match(/\/static\/bill-form\.js\?v=([0-9a-f]{10})/);
+  assert.ok(m, 'bill-form.js has a version');
+  assert.match(page, /\/static\/style\.css\?v=[0-9a-f]{10}/);
+  const res = await fetch(`${base}/static/bill-form.js?v=${m[1]}`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('cache-control'), /immutable/);
+});

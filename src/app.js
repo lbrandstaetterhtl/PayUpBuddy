@@ -81,7 +81,10 @@ export function createApp({ dataDir, ocr, adminPassword, log = console.log }) {
     }
     next();
   });
-  app.use('/static', express.static(PUBLIC_DIR, { maxAge: '1h' }));
+  // Asset URLs carry a content hash (?v=…), so they can be cached for a long time.
+  app.use('/static', express.static(PUBLIC_DIR, {
+    setHeaders: (res) => res.set('Cache-Control', 'public, max-age=31536000, immutable'),
+  }));
   app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 
   app.use((req, res, next) => {

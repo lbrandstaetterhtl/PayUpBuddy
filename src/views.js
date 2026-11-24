@@ -1,4 +1,22 @@
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { formatCents } from './money.js';
+
+const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const versions = new Map();
+/** "/static/x.js" → "/static/x.js?v=<content hash>", so browsers fetch the new file after an update. */
+function asset(url) {
+  if (!versions.has(url)) {
+    let v = 'dev';
+    try {
+      v = crypto.createHash('sha1').update(fs.readFileSync(path.join(PUBLIC_DIR, url.replace('/static/', '')))).digest('hex').slice(0, 10);
+    } catch { /* missing file: leave unversioned */ }
+    versions.set(url, v);
+  }
+  return `${url}?v=${versions.get(url)}`;
+}
 
 class Safe {
   constructor(s) { this.s = s; }
@@ -58,7 +76,7 @@ export function layout({ title, user, flash, body, scripts = [] }) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>${title ? `${title} · ` : ''}PayUpBuddy</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="${asset('/static/style.css')}">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='sans-serif'%3E€%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -67,7 +85,7 @@ export function layout({ title, user, flash, body, scripts = [] }) {
     ${flash ? html`<p class="flash ${flash.type}">${flash.text}</p>` : ''}
     ${body}
   </main>
-  ${['/static/app.js', ...scripts].map((s) => html`<script src="${s}" defer></script>`)}
+  ${['/static/app.js', ...scripts].map((s) => html`<script src="${asset(s)}" defer></script>`)}
 </body>
 </html>`}`;
 }
