@@ -56,7 +56,7 @@ MwSt 19%                3,58
 Trinkgeld               2,00`;
   const { items, totalCents } = parseReceipt(text);
   assert.equal(totalCents, 2240);
-  assert.deepEqual(items.map((i) => i.cents), [950, 700, 590]);
+  assert.deepEqual(items.map((i) => i.cents), [950, 700, 590, 200]); // tip counts, VAT doesn't
   assert.equal(items[1].label, '2 x Cola 0,3');
 });
 
@@ -68,4 +68,34 @@ test('OCR noise: spaced decimals and stray symbols', () => {
 
 test('empty input', () => {
   assert.deepEqual(parseReceipt(''), { items: [], totalCents: null });
+});
+
+test('delivery app screenshot: currency before amount, fees and tip count', () => {
+  const text = `[1x]   =   Double Patty Melt          €12.00
+®      Fritten
+o                   es.s0
+[1x]   Chili Cheese Fritten        €8.00
+— Small
+(1X)   Double Hot Smash Burger     €15.00
+Subtotal                           €40.50
+Delivery costs                     €2.99
+Tip                                €1.00
+Servicefee @                       €0.69
+Rabatt                            -€2.00
+Total (incl. VAT)                  €45.18`;
+  const { items, totalCents } = parseReceipt(text);
+  assert.equal(totalCents, 4518);
+  assert.deepEqual(items, [
+    { label: 'Double Patty Melt', cents: 1200 },
+    { label: 'Chili Cheese Fritten', cents: 800 },
+    { label: 'Double Hot Smash Burger', cents: 1500 },
+    { label: 'Delivery costs', cents: 299 },
+    { label: 'Tip', cents: 100 },
+    { label: 'Servicefee', cents: 69 },
+    { label: 'Rabatt', cents: -200 },
+  ]);
+});
+
+test('a dash between label and amount is not a minus sign', () => {
+  assert.deepEqual(parseReceipt('Brot - 2,49').items, [{ label: 'Brot', cents: 249 }]);
 });

@@ -24,9 +24,12 @@ function getWorker() {
 /** Grayscale, normalized, upscaled-if-small image tuned for receipt OCR. */
 async function prepare(buffer) {
   const img = sharp(buffer, { failOn: 'none' }).rotate();
-  const { width = 0 } = await img.metadata();
+  const [{ width = 0 }, stats] = await Promise.all([img.metadata(), sharp(buffer, { failOn: 'none' }).grayscale().stats()]);
   const target = width < 1200 ? 1600 : Math.min(width, 2400);
-  return img.resize({ width: target, withoutEnlargement: false }).grayscale().normalize().sharpen().png().toBuffer();
+  let out = img.resize({ width: target, withoutEnlargement: false }).grayscale();
+  // Tesseract expects dark text on a light background: invert dark-mode screenshots.
+  if (stats.channels[0].mean < 110) out = out.negate({ alpha: false });
+  return out.normalize().sharpen().png().toBuffer();
 }
 
 /** Reads a receipt image and returns { text, items, totalCents }. Calls are serialized. */

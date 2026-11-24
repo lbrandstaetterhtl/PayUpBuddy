@@ -1,7 +1,8 @@
 import { parseCents } from './money.js';
 
-// Amount at the end of a line, optionally followed by a currency and a tax code ("1,29 B", "9,50 €", "-0,25 A").
-const AMOUNT_AT_END = /(?:^|\s)(-?\s?\d{1,5}(?:[.,]\d{3})*[.,]\d{2})\s*(?:€|EUR)?\s*(?:[A-Z0-9*]{1,2})?\s*$/i;
+// Amount at the end of a line, with an optional currency before or after it and an optional tax code
+// ("1,29 B", "9,50 €", "-0,25 A", "€12.00", "-€1.00", "EUR 5,31").
+const AMOUNT_AT_END = /(?:^|\s)(?:(-)€|€|EUR)?\s?(-?\d{1,5}(?:[.,]\d{3})*[.,]\d{2})\s*(?:€|EUR)?\s*(?:[A-Z0-9*]{1,2})?\s*$/i;
 const ANY_AMOUNT = /\d+[.,]\d{2}\b/g;
 
 const TOTAL = /\b(summe|gesamt(?:betrag|summe)?|total|zu\s*zahlen|endbetrag|rechnungsbetrag|betrag)\b/i;
@@ -9,7 +10,7 @@ const SUBTOTAL = /\b(zwischensumme|zw\.?\s*summe|subtotal)\b/i;
 const IGNORE = new RegExp([
   'mwst', '\\bm\\.\\s*w\\.\\s*st', '\\bust\\b', 'steuer', '\\bnetto\\b', '\\bbrutto\\b',
   'r[üu]e?ckgeld', 'wechselgeld', 'gegeben', '\\bgeg\\.', '\\bbar\\b', 'ec[-\\s]?cash', 'girocard',
-  'kartenzahlung', '\\bkarte\\b', '\\bvisa\\b', 'mastercard', 'maestro', 'kontaktlos', 'trinkgeld', '\\btip\\b',
+  'kartenzahlung', '\\bkarte\\b', '\\bvisa\\b', 'mastercard', 'maestro', 'kontaktlos',
   '\\bdatum\\b', 'uhrzeit', '\\bbeleg\\b', '\\bkasse\\b', 'bon[-\\s]?nr', 'terminal', '\\btse\\b', '\\bst\\.?-?nr', '\\btel\\b',
 ].join('|'), 'i');
 const TAX_ROW = /^\s*[A-Z0-9]\s*[=:]?\s*\d{1,2}(?:[.,]\d+)?\s*%/i;
@@ -21,7 +22,9 @@ function cleanLabel(text) {
     .replace(/[|_~=<>{}[\]]+/g, ' ')
     .replace(/\b(EUR|€)\b/gi, ' ')
     .replace(/\s{2,}/g, ' ')
-    .replace(/^[\s.,:;*#-]+|[\s.,:;*#-]+$/g, '')
+    .replace(/^[^\p{L}\p{N}(]+|[^\p{L}\p{N})%]+$/gu, '')
+    .replace(/^[[(]?\s*1\s*[xX×]\s*[\])]?\s+/, '') // "1x", "[1x]", "(1X)" quantity badges
+    .replace(/^[^\p{L}\p{N}(]+/u, '')
     .trim();
 }
 
@@ -40,7 +43,7 @@ export function parseReceipt(text) {
 
     const m = line.match(AMOUNT_AT_END);
     if (!m) continue;
-    const cents = parseCents(m[1].replace(/\s/g, ''));
+    const cents = parseCents((m[1] || '') + m[2]);
     if (cents === null || cents === 0) continue;
     const label = cleanLabel(line.slice(0, m.index));
 
