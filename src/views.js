@@ -63,7 +63,7 @@ function due(iso, paid) {
 export function layout({ title, user, flash, body, scripts = [] }) {
   const nav = user ? html`
     <nav>
-      <a href="/" class="brand"><span class="logo">€</span><span class="brand-text">PayUpBuddy</span></a>
+      <a href="/" class="brand">PayUpBuddy</a>
       <span class="spacer"></span>
       <a href="/bills/new" class="btn small">+ Rechnung</a>
       ${user.is_admin ? html`<a href="/users">Benutzer</a>` : ''}
@@ -77,7 +77,7 @@ export function layout({ title, user, flash, body, scripts = [] }) {
   <meta name="color-scheme" content="light dark">
   <title>${title ? `${title} · ` : ''}PayUpBuddy</title>
   <link rel="stylesheet" href="${asset('/static/style.css')}">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='sans-serif'%3E€%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2336618e'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='sans-serif'%3E%E2%82%AC%3C/text%3E%3C/svg%3E">
 </head>
 <body>
   ${nav}
@@ -126,7 +126,7 @@ export function dashboardPage({ user, flash, totals, people, bills }) {
             ${it.iOwe ? '' : html`
               <form method="post" action="/shares/${it.shareId}/paid" class="inline">
                 <input type="hidden" name="back" value="/">
-                <button class="small ghost" title="Als bezahlt markieren">Erhalten ✓</button>
+                <button class="small ghost" title="Als bezahlt markieren">Erhalten</button>
               </form>`}
           </li>`)}
       </ul>
@@ -147,7 +147,7 @@ export function dashboardPage({ user, flash, totals, people, bills }) {
       </section>
 
       <h2>Offen</h2>
-      ${people.length ? people.map(personBlock) : html`<p class="muted">Alles beglichen. 🎉</p>`}
+      ${people.length ? people.map(personBlock) : html`<p class="muted">Keine offenen Beträge.</p>`}
 
       <h2>Rechnungen</h2>
       ${bills.length ? html`
@@ -187,7 +187,7 @@ export function newBillPage({ user, flash, users, values = {} }) {
         <label class="drop" id="drop">
           <input type="file" name="image" accept="image/*" id="image">
           <img id="preview" alt="" hidden>
-          <span id="drop-text">📷 Foto der Rechnung wählen</span>
+          <span id="drop-text">Foto der Rechnung wählen …</span>
         </label>
         <p id="ocr-status" class="muted" hidden></p>
 
@@ -246,7 +246,7 @@ export function billPage({ user, flash, bill, shares }) {
             ${isPayer && !own ? html`
               <form method="post" action="/shares/${s.id}/${s.paid_at ? 'unpaid' : 'paid'}" class="inline">
                 <input type="hidden" name="back" value="/bills/${bill.id}">
-                <button class="small ghost">${s.paid_at ? 'Rückgängig' : 'Erhalten ✓'}</button>
+                <button class="small ghost">${s.paid_at ? 'Rückgängig' : 'Erhalten'}</button>
               </form>` : ''}
           </li>`;
         })}
