@@ -23,17 +23,46 @@
   };
   const fmt = (c) => (c / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
-  function addRow({ label = '', amount = '', user = assignAll.value } = {}) {
+  // Same rule as the server: equal parts, the first people get the leftover cents.
+  const split = (cents, n) => {
+    const base = Math.trunc(cents / n);
+    let rest = cents - base * n;
+    return Array.from({ length: n }, () => { const s = Math.sign(rest); rest -= s; return base + s; });
+  };
+
+  // ---------- person picker ----------
+  const checked = (who) => [...who.querySelectorAll('input:checked')];
+  const selectedIds = (who) => checked(who).map((i) => i.value);
+  function setSelected(who, ids) {
+    who.querySelectorAll('input').forEach((i) => { i.checked = ids.includes(i.value); });
+    refreshLabel(who);
+  }
+  function refreshLabel(who) {
+    const names = checked(who).map((i) => i.dataset.name);
+    const summaryEl = who.querySelector('summary');
+    const short = names.length > 2 ? `${names[0]} + ${names.length - 1}` : names.join(' + ');
+    summaryEl.textContent = names.length ? short : (who === assignAll ? '–' : 'Wer?');
+    summaryEl.title = names.join(' + ');
+    who.classList.toggle('empty', !names.length);
+    who.classList.remove('missing');
+  }
+  // Only one picker open at a time; clicking elsewhere closes it.
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('details.who[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false; });
+  });
+
+  // ---------- rows ----------
+  function addRow({ label = '', amount = '' } = {}) {
     const row = tpl.content.firstElementChild.cloneNode(true);
     row.querySelector('.label').value = label;
     row.querySelector('.amount').value = amount;
-    row.querySelector('.user').value = user || '';
+    setSelected(row.querySelector('.who'), selectedIds(assignAll));
     rows.append(row);
     return row;
   }
 
   function update() {
-    const per = new Map();
+    const per = new Map(); // name -> cents
     let sum = 0;
     for (const row of rows.children) {
       const amountEl = row.querySelector('.amount');
@@ -41,9 +70,12 @@
       amountEl.classList.toggle('invalid', amountEl.value !== '' && (c === null || c === 0));
       if (!c) continue;
       sum += c;
-      const sel = row.querySelector('.user');
-      const name = sel.value ? sel.options[sel.selectedIndex].text : 'nicht zugeordnet';
-      per.set(name, (per.get(name) || 0) + c);
+      const names = checked(row.querySelector('.who')).map((i) => i.dataset.name);
+      if (!names.length) {
+        per.set('nicht zugeordnet', (per.get('nicht zugeordnet') || 0) + c);
+        continue;
+      }
+      split(c, names.length).forEach((part, k) => per.set(names[k], (per.get(names[k]) || 0) + part));
     }
     summary.replaceChildren();
     const total = document.createElement('div');
@@ -64,6 +96,7 @@
     }
   }
 
+  // ---------- OCR ----------
   async function recognize(file) {
     status.hidden = false;
     status.className = 'muted';
@@ -114,30 +147,42 @@
     update();
   });
   rows.addEventListener('input', update);
-  rows.addEventListener('change', update);
+  rows.addEventListener('change', (e) => {
+    const who = e.target.closest('.who');
+    if (who) refreshLabel(who);
+    update();
+  });
   assignAll.addEventListener('change', () => {
-    if (!assignAll.value) return;
-    rows.querySelectorAll('.user').forEach((s) => { s.value = assignAll.value; });
+    refreshLabel(assignAll);
+    const ids = selectedIds(assignAll);
+    rows.querySelectorAll('.who').forEach((w) => setSelected(w, ids));
     update();
   });
 
   form.addEventListener('submit', (e) => {
-    if (form.classList.contains('busy')) { e.preventDefault(); return; }
-    const items = [...rows.children].map((r) => ({
-      label: r.querySelector('.label').value,
-      amount: r.querySelector('.amount').value,
-      user: r.querySelector('.user').value,
-    })).filter((i) => i.amount.trim() !== '');
-    if (!items.length) {
+    const fail = (text) => {
       e.preventDefault();
       status.hidden = false;
       status.className = 'overdue';
-      status.textContent = 'Bitte mindestens einen Betrag eintragen.';
-      return;
+      status.textContent = text;
+    };
+    if (form.classList.contains('busy')) return fail('Bitte warten, die Beträge werden noch erkannt …');
+    const filled = [...rows.children].filter((r) => r.querySelector('.amount').value.trim() !== '');
+    if (!filled.length) return fail('Bitte mindestens einen Betrag eintragen.');
+    const missing = filled.filter((r) => !selectedIds(r.querySelector('.who')).length);
+    if (missing.length) {
+      missing.forEach((r) => r.querySelector('.who').classList.add('missing'));
+      missing[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return fail('Bitte jedem Posten mindestens eine Person zuordnen.');
     }
-    document.getElementById('items-json').value = JSON.stringify(items);
+    document.getElementById('items-json').value = JSON.stringify(filled.map((r) => ({
+      label: r.querySelector('.label').value,
+      amount: r.querySelector('.amount').value,
+      users: selectedIds(r.querySelector('.who')),
+    })));
   });
 
+  refreshLabel(assignAll);
   addRow();
   update();
 })();

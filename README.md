@@ -7,7 +7,8 @@ PayUpBuddy behält im Blick, wer wem wie viel schuldet.
 
 - **Rechnung hochladen**: Foto auswählen (am Handy direkt mit der Kamera). Die Beträge werden automatisch
   ausgelesen (OCR, läuft lokal auf dem Server, kein externer Dienst).
-- **Zuordnen**: Jeden erkannten Posten einer Person zuweisen (oder „Alle an …“), Datum „Zahlen bis“ wählen, speichern.
+- **Zuordnen**: Jeden erkannten Posten einer oder mehreren Personen zuweisen (oder „Alle an …“), Datum „Zahlen bis“ wählen, speichern.
+  Teilen sich mehrere Personen einen Posten, wird er gleichmäßig aufgeteilt (übrige Cents bekommen die Ersten).
   Wer die Rechnung hochlädt, hat sie bezahlt; Posten, die er/sie sich selbst zuordnet, sind der eigene Anteil.
 - **Übersicht**: Was du schuldest, was dir geschuldet wird, pro Person saldiert, Überfälliges in Rot.
 - **Bezahlt markieren**: Nur wer das Geld bekommt, bestätigt den Erhalt (einzeln oder „Alles von … erhalten“).

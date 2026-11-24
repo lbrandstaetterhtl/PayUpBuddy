@@ -146,10 +146,18 @@ export function dashboardPage({ user, flash, totals, people, bills }) {
 }
 
 export function newBillPage({ user, flash, users, values = {} }) {
-  const others = users.filter((u) => u.id !== user.id);
-  const options = html`
-    <option value="${user.id}">Ich (${user.name})</option>
-    ${others.map((u) => html`<option value="${u.id}">${u.name}</option>`)}`;
+  const people = [
+    { id: user.id, name: `Ich (${user.name})`, short: 'Ich' },
+    ...users.filter((u) => u.id !== user.id).map((u) => ({ id: u.id, name: u.name, short: u.name })),
+  ];
+  // Person picker: one or more people per item; several people share the amount equally.
+  const who = (attrs = '') => html`
+    <details class="who" ${attrs}>
+      <summary>Wer?</summary>
+      <div class="who-menu">
+        ${people.map((p) => html`<label><input type="checkbox" value="${p.id}" data-name="${p.short}"> ${p.name}</label>`)}
+      </div>
+    </details>`;
   return layout({
     title: 'Neue Rechnung',
     user,
@@ -173,9 +181,7 @@ export function newBillPage({ user, flash, users, values = {} }) {
         <div>
           <div class="items-head">
             <strong>Posten</strong>
-            <label class="inline-label">Alle an
-              <select id="assign-all"><option value="">–</option>${options}</select>
-            </label>
+            <div class="inline-label">Alle an ${who(html`id="assign-all"`)}</div>
           </div>
           <div id="rows"></div>
           <button type="button" class="ghost small" id="add-row">+ Posten</button>
@@ -187,7 +193,7 @@ export function newBillPage({ user, flash, users, values = {} }) {
           <div class="item-row">
             <input class="label" placeholder="Beschreibung" maxlength="80">
             <input class="amount" inputmode="decimal" placeholder="0,00" required>
-            <select class="user" required><option value="">Wer?</option>${options}</select>
+            ${who()}
             <button type="button" class="ghost small remove" title="Entfernen" aria-label="Entfernen">×</button>
           </div>
         </template>

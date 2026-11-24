@@ -149,3 +149,12 @@ test('rebuildLines puts a right-column price on the row of its item and drops ph
   ]);
   assert.equal(text, 'Fritten €5.50\nTotal €45.18');
 });
+
+test('splitCents splits exactly, leftover cents go to the first people', async () => {
+  const { splitCents } = await import('../src/money.js');
+  assert.deepEqual(splitCents(1000, 3), [334, 333, 333]);
+  assert.deepEqual(splitCents(1000, 2), [500, 500]);
+  assert.deepEqual(splitCents(1, 3), [1, 0, 0]);
+  assert.deepEqual(splitCents(-100, 3), [-34, -33, -33]);
+  assert.equal(splitCents(4518, 7).reduce((a, b) => a + b, 0), 4518);
+});

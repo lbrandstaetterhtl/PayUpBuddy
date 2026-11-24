@@ -34,3 +34,17 @@ export function formatCents(cents) {
 export function centsToInput(cents) {
   return ((cents || 0) / 100).toFixed(2).replace('.', ',');
 }
+
+/**
+ * Splits an amount into n parts that add up exactly; the first parts get the leftover cents.
+ * splitCents(1000, 3) → [334, 333, 333]
+ */
+export function splitCents(cents, n) {
+  const base = Math.trunc(cents / n);
+  let rest = cents - base * n;
+  return Array.from({ length: n }, () => {
+    const step = Math.sign(rest);
+    rest -= step;
+    return base + step;
+  });
+}

@@ -126,7 +126,29 @@ form.inline { display: inline; }
 
 .items-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 8px; }
 .inline-label { display: flex; align-items: center; gap: 8px; }
-.inline-label select { width: auto; margin: 0; padding: 6px 10px; }
+#assign-all { min-width: 120px; }
+#assign-all summary { padding: 6px 28px 6px 10px; }
+
+/* Person picker: one or more people per item */
+.who { position: relative; min-width: 0; }
+.who summary {
+  position: relative; list-style: none; cursor: pointer; padding: 10px 28px 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.who summary::-webkit-details-marker { display: none; }
+.who summary::after { content: '▾'; position: absolute; right: 10px; color: var(--muted); }
+.who.empty summary { color: var(--muted); }
+.who.missing summary { border-color: var(--minus); }
+.who[open] summary { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.who-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 10; min-width: 190px; max-height: 280px; overflow: auto;
+  padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / .18);
+}
+.who-menu label { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; color: var(--text); cursor: pointer; white-space: nowrap; }
+.who-menu label:hover { background: var(--bg); }
+.who-menu input { width: auto; margin: 0; accent-color: var(--accent); }
 .item-row { display: grid; grid-template-columns: 1fr 96px 130px 36px; gap: 6px; margin-bottom: 6px; }
 .item-row .amount { text-align: right; font-variant-numeric: tabular-nums; }
 .item-row .remove { padding: 0; font-size: 1.2rem; color: var(--muted); }

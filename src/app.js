@@ -10,7 +10,7 @@ import {
   COOKIE, createSession, destroySession, ensureAdmin, hashPassword, parseCookies,
   randomPassword, userForToken, verifyPassword,
 } from './auth.js';
-import { centsToInput, formatCents, parseCents } from './money.js';
+import { centsToInput, formatCents, parseCents, splitCents } from './money.js';
 import * as views from './views.js';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -194,14 +194,18 @@ export function createApp({ dataDir, ocr, adminPassword, log = console.log }) {
     const perUser = new Map();
     for (const r of rows.slice(0, 200)) {
       const cents = parseCents(r?.amount);
-      const uid = Number(r?.user);
       if (cents === null || cents === 0) return fail(`Ungültiger Betrag: „${String(r?.amount ?? '').slice(0, 20)}“`);
-      if (!known.has(uid)) return fail('Unbekannter Benutzer in den Posten.');
-      const entry = perUser.get(uid) ?? { cents: 0, labels: [] };
-      entry.cents += cents;
-      const label = String(r?.label || '').trim();
-      if (label) entry.labels.push(label);
-      perUser.set(uid, entry);
+      // Several people on one item share it equally.
+      const uids = [...new Set((Array.isArray(r?.users) ? r.users : [r?.user]).map(Number))];
+      if (!uids.length || uids.some((uid) => !known.has(uid))) return fail('Bitte jedem Posten mindestens eine Person zuordnen.');
+      const parts = splitCents(cents, uids.length);
+      const label = String(r?.label || '').trim().slice(0, 80);
+      uids.forEach((uid, k) => {
+        const entry = perUser.get(uid) ?? { cents: 0, labels: [] };
+        entry.cents += parts[k];
+        if (label) entry.labels.push(uids.length > 1 ? `${label} (1/${uids.length})` : label);
+        perUser.set(uid, entry);
+      });
     }
     for (const [uid, e] of perUser) {
       if (e.cents <= 0) return fail(`Der Anteil von ${users.find((u) => u.id === uid).name} ist nicht positiv.`);
