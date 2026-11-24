@@ -1,0 +1,16 @@
+services:
+  payupbuddy:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Passwort für den ersten Admin (nur beim allerersten Start relevant).
+      # Leer lassen → ein zufälliges Passwort wird ins Log geschrieben.
+      ADMIN_PASSWORD: ""
+      TZ: Europe/Berlin
+    volumes:
+      - payupbuddy-data:/data
+
+volumes:
+  payupbuddy-data:
