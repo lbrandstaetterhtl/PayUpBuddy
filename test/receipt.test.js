@@ -99,3 +99,30 @@ Total (incl. VAT)                  €45.18`;
 test('a dash between label and amount is not a minus sign', () => {
   assert.deepEqual(parseReceipt('Brot - 2,49').items, [{ label: 'Brot', cents: 249 }]);
 });
+
+test('item name above its price and option lines ("- Small")', () => {
+  const text = `(1X)  3  Double Patty Melt          €12.00
+s  Fritten
+© DE - smou                   €5.50
+'1x]  A,  Chili Cheese Fritten       €8.00
+- Small
+Pizza Salami
+€9.90
+Total                          €35.40`;
+  const { items, totalCents } = parseReceipt(text);
+  assert.equal(totalCents, 3540);
+  assert.deepEqual(items, [
+    { label: '3 Double Patty Melt', cents: 1200 },
+    { label: 'Fritten', cents: 550 },
+    { label: 'Chili Cheese Fritten', cents: 800 },
+    { label: 'Pizza Salami', cents: 990 },
+  ]);
+});
+
+test('OCR pass scoring prefers results whose items add up to the total', async () => {
+  const { score } = await import('../src/ocr.js');
+  const complete = score({ items: [{ cents: 500 }, { cents: 300 }], totalCents: 800 });
+  const partial = score({ items: [{ cents: 500 }, { cents: 100 }, { cents: 100 }], totalCents: 800 });
+  const none = score({ items: [], totalCents: 800 });
+  assert.ok(complete > partial && partial > none);
+});

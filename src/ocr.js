@@ -32,12 +32,33 @@ async function prepare(buffer) {
   return out.normalize().sharpen().png().toBuffer();
 }
 
+// Page segmentation modes to try: 3 = automatic layout (best for paper receipts),
+// 4 = single column (keeps prices next to their item in app screenshots with product images),
+// 6 = single uniform block.
+const PSM_PASSES = ['3', '4', '6'];
+
+/** Higher is better: items that add up to the printed total win, otherwise more items and a smaller gap. */
+export function score({ items, totalCents }) {
+  const sum = items.reduce((a, i) => a + i.cents, 0);
+  if (items.length && totalCents !== null && sum === totalCents) return 1e6 + items.length;
+  const gap = totalCents === null ? 0 : Math.abs(totalCents - sum) / Math.max(totalCents, 1);
+  return items.length * 10 + (totalCents !== null ? 5 : 0) - gap * 10;
+}
+
 /** Reads a receipt image and returns { text, items, totalCents }. Calls are serialized. */
 export function recognizeReceipt(buffer) {
   const run = queue.then(async () => {
     const [worker, input] = await Promise.all([getWorker(), prepare(buffer)]);
-    const { data } = await worker.recognize(input);
-    return { text: data.text, ...parseReceipt(data.text) };
+    let best = null;
+    for (const psm of PSM_PASSES) {
+      await worker.setParameters({ tessedit_pageseg_mode: psm });
+      const { data } = await worker.recognize(input);
+      const result = { text: data.text, ...parseReceipt(data.text) };
+      result.score = score(result);
+      if (!best || result.score > best.score) best = result;
+      if (best.score >= 1e6) break; // items match the total: good enough
+    }
+    return best;
   });
   queue = run.catch(() => {});
   return run;

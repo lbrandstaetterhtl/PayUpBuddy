@@ -1,8 +1,8 @@
 import { parseCents } from './money.js';
 
 // Amount at the end of a line, with an optional currency before or after it and an optional tax code
-// ("1,29 B", "9,50 €", "-0,25 A", "€12.00", "-€1.00", "EUR 5,31").
-const AMOUNT_AT_END = /(?:^|\s)(?:(-)€|€|EUR)?\s?(-?\d{1,5}(?:[.,]\d{3})*[.,]\d{2})\s*(?:€|EUR)?\s*(?:[A-Z0-9*]{1,2})?\s*$/i;
+// ("1,29 B", "9,50 €", "-0,25 A", "€12.00", "-€1.00", "EUR 5,31"; OCR sometimes reads € as < or «).
+const AMOUNT_AT_END = /(?:^|\s)(?:(-)[€<«]|[€<«]|EUR)?\s?(-?\d{1,5}(?:[.,]\d{3})*[.,]\d{2})\s*(?:€|EUR)?\s*(?:[A-Z0-9*]{1,2})?\s*$/i;
 const ANY_AMOUNT = /\d+[.,]\d{2}\b/g;
 
 const TOTAL = /\b(summe|gesamt(?:betrag|summe)?|total|zu\s*zahlen|endbetrag|rechnungsbetrag|betrag)\b/i;
@@ -25,8 +25,13 @@ function cleanLabel(text) {
     .replace(/^[^\p{L}\p{N}(]+|[^\p{L}\p{N})%]+$/gu, '')
     .replace(/^[[(]?\s*1\s*[xX×]\s*[\])]?\s+/, '') // "1x", "[1x]", "(1X)" quantity badges
     .replace(/^[^\p{L}\p{N}(]+/u, '')
+    .replace(/^(?:[^\p{N}\s][^\p{L}\p{N}\s]?\s+)+(?=\p{L})/u, '') // stray OCR characters like "s " or "A, "
     .trim();
 }
+
+const letters = (s) => (s.match(/\p{L}/gu) || []).length;
+// "- Small", "— Extra Käse": an option line printed under the item name.
+const SUB_OPTION = /(^|\s)[-—–]\s/;
 
 /**
  * Extracts line items and the receipt total from OCR text.
@@ -35,6 +40,7 @@ function cleanLabel(text) {
 export function parseReceipt(text) {
   const items = [];
   let totalCents = null;
+  let pendingLabel = null; // previous text line without an amount, e.g. an item name above its price
 
   for (const raw of String(text || '').split(/\r?\n/)) {
     // Repair OCR artifacts such as "1 ,29" or "1, 29".
@@ -42,10 +48,18 @@ export function parseReceipt(text) {
     if (!line) continue;
 
     const m = line.match(AMOUNT_AT_END);
-    if (!m) continue;
+    if (!m) {
+      if (SUB_OPTION.test(line) && pendingLabel) continue; // keep the item name, skip its option line
+      const text = cleanLabel(line);
+      pendingLabel = letters(text) >= 2 && !IGNORE.test(line) && !TOTAL.test(line) ? text : null;
+      continue;
+    }
+    const previous = pendingLabel;
+    pendingLabel = null;
     const cents = parseCents((m[1] || '') + m[2]);
     if (cents === null || cents === 0) continue;
-    const label = cleanLabel(line.slice(0, m.index));
+    let label = cleanLabel(line.slice(0, m.index));
+    if (previous && (letters(label) < 2 || SUB_OPTION.test(line.slice(0, m.index)))) label = previous;
 
     if (SUBTOTAL.test(line)) continue;
     if (TOTAL.test(line)) {
@@ -54,7 +68,7 @@ export function parseReceipt(text) {
     }
     if (IGNORE.test(line) || TAX_ROW.test(line) || QTY_DETAIL.test(line) || DATE.test(line)) continue;
     if ((line.match(ANY_AMOUNT) || []).length >= 3) continue; // tax tables
-    if ((label.match(/\p{L}/gu) || []).length < 2) continue;  // needs a readable description
+    if (letters(label) < 2) continue; // needs a readable description
     if (Math.abs(cents) > 100000_00) continue;
 
     items.push({ label: label.slice(0, 80), cents });
